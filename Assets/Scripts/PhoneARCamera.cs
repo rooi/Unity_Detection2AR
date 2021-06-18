@@ -266,7 +266,7 @@ public class PhoneARCamera : MonoBehaviour
         {
             staticNum += 1;
         }
-
+        /*
         // merge same bounding boxes
         // remove will cause duplicated bounding box?
         List<BoundingBox> temp = new List<BoundingBox>();
@@ -300,6 +300,7 @@ public class PhoneARCamera : MonoBehaviour
             temp.AddRange(itemsToAdd);
         }
         this.boxSavedOutlines = temp;
+        */
     }
 
     // For two bounding boxes, if at least one center is inside the other box,
