@@ -13,12 +13,31 @@ using System.IO;
 using TFClassify;
 using System.Linq;
 using System.Collections;
-
+using TMPro;
 
 public class PhoneARCamera : MonoBehaviour
 {
     [SerializeField]
     ARCameraManager m_CameraManager;
+
+    [SerializeField]
+    GameObject m_3DBoundingBox;
+
+    [SerializeField]
+    ARRaycastManager m_RaycastManager;
+
+    [SerializeField]
+    private LayerMask layersToInclude;
+
+    [SerializeField]
+    private float confidenceFilter = 0.9f;
+
+    public ARAnchorManager m_AnchorManager;
+    public Camera m_ARCamera;
+
+    static List<ARRaycastHit> s_Hits = new List<ARRaycastHit>();
+
+    const TrackableType trackableTypes = TrackableType.Planes;// TrackableType.Planes | TrackableType.FeaturePoint;
 
     /// <summary>
     /// Get or set the <c>ARCameraManager</c>.
@@ -60,6 +79,8 @@ public class PhoneARCamera : MonoBehaviour
     private IList<BoundingBox> boxOutlines;
     // bounding boxes detected across frames
     public List<BoundingBox> boxSavedOutlines = new List<BoundingBox>();
+    public List<BoundingBox> filteredOutlines = new List<BoundingBox>();
+
     // lock model when its inferencing a frame
     private bool isDetecting = false;
 
@@ -107,6 +128,12 @@ public class PhoneARCamera : MonoBehaviour
         {
             m_CameraManager.frameReceived -= OnCameraFrameReceived;
         }
+    }
+
+    void Awake()
+    {
+        m_AnchorManager = GetComponent<ARAnchorManager>();
+        m_ARCamera = FindObjectOfType<ARSessionOrigin>().camera;
     }
 
     public void OnRefresh()
@@ -179,7 +206,10 @@ public class PhoneARCamera : MonoBehaviour
             // detect object and create current frame outlines
             TFDetect();
             // merging outliens across frames
-            GroupBoxOutlines();
+            //List<BoundingBox> filteredBoundingBoxes = FilterOutlines2D(this.boxOutlines);
+            this.filteredOutlines = FilterOutlines2D(this.boxOutlines);
+            Create3DBoundingBoxes(this.filteredOutlines);
+            //GroupBoxOutlines();
         }
         // Set the RawImage's texture so we can visualize it.
         m_RawImage.texture = m_Texture;
@@ -194,15 +224,47 @@ public class PhoneARCamera : MonoBehaviour
             return;
         }
 
-        if (this.boxSavedOutlines != null && this.boxSavedOutlines.Any())
+        //Debug.LogWarning("OnGui");
+        if (this.boxSavedOutlines != null)// && this.boxSavedOutlines.Any())
         {
+            //Debug.LogWarning("this.boxSavedOutlines != null " + this.boxSavedOutlines.Count);
             foreach (var outline in this.boxSavedOutlines)
             {
+                //Debug.LogWarning("DrawBoxOutline " + outline.Rect.x + ", " + outline.Rect.y);
                 DrawBoxOutline(outline, scaleFactor, shiftX, shiftY);
+            }
+        }
+
+        if (this.filteredOutlines != null)// && this.boxSavedOutlines.Any())
+        {
+            //Debug.LogWarning("this.boxSavedOutlines != null " + this.boxSavedOutlines.Count);
+            foreach (var outline in this.filteredOutlines)
+            {
+                //Debug.LogWarning("DrawBoxOutline " + outline.Rect.x + ", " + outline.Rect.y);
+                DrawBoxOutline(outline, scaleFactor, shiftX, shiftY, 2);
             }
         }
     }
 
+    // merging bounding boxes and save result to boxSavedOutlines
+    private List<BoundingBox> FilterOutlines2D(IList<BoundingBox> inBbs)
+    {
+        List<BoundingBox> outBbs = null;
+
+        // no bounding boxes in current frame
+        if (inBbs == null || inBbs.Count == 0)
+        {
+            outBbs = new List<BoundingBox>();
+        }
+        else
+        {
+            // Check for doubles
+            outBbs = inBbs.Distinct().ToList();
+        }
+
+        return outBbs;
+    }
+#if false
     // merging bounding boxes and save result to boxSavedOutlines
     private void GroupBoxOutlines()
     {
@@ -214,10 +276,15 @@ public class PhoneARCamera : MonoBehaviour
             {
                 return;
             }
+
             // deep copy current frame bounding boxes
-            foreach (var outline in this.boxOutlines)
+            foreach (var outline1 in this.boxOutlines)
             {
-                this.boxSavedOutlines.Add(outline);
+                // Only add when it is world referenced
+                if (outline1.WorldReferenced)
+                {
+                    this.boxSavedOutlines.Add(outline1);
+                }
             }
             return;
         }
@@ -226,6 +293,9 @@ public class PhoneARCamera : MonoBehaviour
         bool addOutline = false;
         foreach (var outline1 in this.boxOutlines)
         {
+            // Do not process oultines that are not world referenced
+            if (!outline1.WorldReferenced) continue;
+
             bool unique = true;
             List<BoundingBox> itemsToAdd = new List<BoundingBox>();
             List<BoundingBox> itemsToRemove = new List<BoundingBox>();
@@ -302,33 +372,179 @@ public class PhoneARCamera : MonoBehaviour
         this.boxSavedOutlines = temp;
         */
     }
-
-    // For two bounding boxes, if at least one center is inside the other box,
-    // treate them as the same object.
-    private bool IsSameObject(BoundingBox outline1, BoundingBox outline2)
+#endif
+    GameObject CreateAnchorGameObject(in Vector3 pos, in Quaternion rot, in Vector3 localScale, in String label="", in float confidence=0.0f)
     {
-        var xMin1 = outline1.Dimensions.X * this.scaleFactor + this.shiftX;
-        var width1 = outline1.Dimensions.Width * this.scaleFactor;
-        var yMin1 = outline1.Dimensions.Y * this.scaleFactor + this.shiftY;
-        var height1 = outline1.Dimensions.Height * this.scaleFactor;
-        float center_x1 = xMin1 + width1 / 2f;
-        float center_y1 = yMin1 + height1 / 2f;
+        // create a regular anchor at the hit pose
+        //Debug.Log($"DEBUG: Creating anchor for Create3DBoundingBoxes.");
 
-        var xMin2 = outline2.Dimensions.X * this.scaleFactor + this.shiftX;
-        var width2 = outline2.Dimensions.Width * this.scaleFactor;
-        var yMin2 = outline2.Dimensions.Y * this.scaleFactor + this.shiftY;
-        var height2 = outline2.Dimensions.Height * this.scaleFactor;
-        float center_x2 = xMin2 + width2 / 2f;
-        float center_y2 = yMin2 + height2 / 2f;
+        GameObject go = new GameObject($"{label}: {(int)(confidence * 100)}%");
 
-        bool cover_x = (xMin2 < center_x1) && (center_x1 < (xMin2 + width2));
-        bool cover_y = (yMin2 < center_y1) && (center_y1 < (yMin2 + height2));
-        bool contain_x = (xMin1 < center_x2) && (center_x2 < (xMin1 + width1));
-        bool contain_y = (yMin1 < center_y2) && (center_y2 < (yMin1 + height1));
+        GameObject child = m_3DBoundingBox ? Instantiate(m_3DBoundingBox, new Vector3(0, 0, 0), Quaternion.identity) : GameObject.CreatePrimitive(PrimitiveType.Cube);
+        child.transform.SetParent(go.transform, true);
+        BoxCollider bc = child.GetComponent<BoxCollider>();
+        if(!bc) child.AddComponent(typeof(BoxCollider));
 
-        return (cover_x && cover_y) || (contain_x && contain_y);
+        Merge3DBoundingBoxes mbb = child.AddComponent(typeof(Merge3DBoundingBoxes)) as Merge3DBoundingBoxes;
+        mbb.label = label; mbb.confidence = confidence;
+
+        Rigidbody rb = child.GetComponent<Rigidbody>();
+        if(!rb) rb = child.AddComponent(typeof(Rigidbody)) as Rigidbody;
+        rb.useGravity = false;
+
+        //child.transform.localPosition = -0.5f * new Vector3(1, 1, 1);
+
+        if (label != "")
+        {
+            var textMesh = new GameObject();
+            var text = textMesh.AddComponent<TextMeshPro>();
+            text.text = $"{label}: {(int)(confidence * 100)}%";
+            textMesh.transform.localScale = 0.05f * new Vector3(1, 1, 1);
+            textMesh.transform.rotation = rot;
+            textMesh.transform.SetParent(go.transform, true);
+            //textMesh.transform.localPosition = new Vector3();
+        }
+        
+        // Note: rect bounding box coordinates starts from top left corner.
+        // AR camera starts from borrom left corner.
+        // Need to flip Y axis coordinate of the anchor 2D position when raycast
+        child.transform.localScale = localScale;//scaleX, scaleY, 0.001f);
+        child.transform.rotation = rot;
+
+        go.transform.position = pos;
+        go.AddComponent(typeof(ARAnchor));
+
+
+        //go.layer = detectedObjectsLayer;
+
+        return go;
     }
 
+    private void Create3DBoundingBoxes(List<BoundingBox> inBbs)
+    {
+        // no bounding boxes in current frame
+        if (inBbs == null || inBbs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var outline in inBbs)
+        {
+            // Filter confidence
+            if (outline.Confidence < confidenceFilter) continue;
+
+            // Note: rect bounding box coordinates starts from top left corner.
+            // AR camera starts from borrom left corner.
+            // Need to flip Y axis coordinate of the anchor 2D position when raycast
+            var xMin = outline.Dimensions.X * this.scaleFactor + this.shiftX;
+            var width = outline.Dimensions.Width * this.scaleFactor;
+            var yMin = outline.Dimensions.Y * this.scaleFactor + this.shiftY;
+            yMin = Screen.height - yMin;
+            var height = outline.Dimensions.Height * this.scaleFactor;
+
+            float center_x = xMin + width / 2f;
+            float center_y = yMin - height / 2f;
+
+            var worldPosCenter = m_ARCamera.ScreenToWorldPoint(new Vector3(center_x, center_y, m_ARCamera.nearClipPlane));
+            var worldPosLeft = m_ARCamera.ScreenToWorldPoint(new Vector3(xMin, center_y, m_ARCamera.nearClipPlane));//outline1.Rect.xMin, outline1.Rect.center.y, m_ARCamera.nearClipPlane));
+            var worldPosUp = m_ARCamera.ScreenToWorldPoint(new Vector3(center_x, yMin, m_ARCamera.nearClipPlane));//outline1.Rect.center.x, outline1.Rect.yMax, m_ARCamera.nearClipPlane));
+            var worldScaleX = 2.0f * (worldPosCenter - worldPosLeft).magnitude;
+            var worldScaleY = 2.0f * (worldPosCenter - worldPosUp).magnitude;
+            var rotation = m_ARCamera.transform.rotation;
+            //CreateAnchorGameObject(worldPosCenter, rotation, worldScaleX, worldScaleY);
+
+            if(Physics.Raycast(m_ARCamera.ScreenPointToRay(new Vector3(center_x, center_y, m_ARCamera.nearClipPlane)), out var hit, float.PositiveInfinity, layersToInclude))
+            //if (m_RaycastManager.Raycast(new Vector2(center_x, center_y), s_Hits, trackableTypes))
+            {
+                int i = 0;
+                //foreach (var hit in s_Hits)
+                //{
+                //    Debug.Log("Hits[" + i + "]: " + (hit.trackable? hit.trackable.gameObject.name : "NO_TRACKABLE??"));
+                //    i++;
+                //}
+                //foreach (var hit in s_Hits)
+                {
+                    //if (hit.trackable != null && hit.trackable.gameObject.layer == roomMeshLayer) ;// != detectedObjectsLayer)
+                    {
+                        // Raycast hits are sorted by distance, so the first one will be the closest hit.
+                        //var hit = s_Hits[0];
+                        //TextMesh anchorObj = GameObject.Find("New Text").GetComponent<TextMesh>();
+                        // Create a new anchor
+                        //Debug.Log("Creating 3D World Reference for BoundingBox");
+
+                        var worldHitPosCenter = hit.point;// pose.position; //m_ARCamera.nearClipPlane));
+                        var worldHitPosLeft = m_ARCamera.ScreenToWorldPoint(new Vector3(xMin, center_y, hit.distance)); //m_ARCamera.nearClipPlane));//outline1.Rect.xMin, outline1.Rect.center.y, m_ARCamera.nearClipPlane));
+                        var worldHitPosUp = m_ARCamera.ScreenToWorldPoint(new Vector3(center_x, yMin, hit.distance)); //m_ARCamera.nearClipPlane));//outline1.Rect.center.x, outline1.Rect.yMax, m_ARCamera.nearClipPlane));
+                        var worldHitScaleX = 2.0f * (worldHitPosCenter - worldHitPosLeft).magnitude;
+                        var worldHitScaleY = 2.0f * (worldHitPosCenter - worldHitPosUp).magnitude;
+                        var localScale = new Vector3(worldHitScaleX, worldHitScaleY, Math.Min(worldHitScaleX, worldHitScaleY));
+                        var rotationHit = m_ARCamera.transform.rotation;
+                        CreateAnchorGameObject(worldHitPosCenter, rotationHit, localScale, outline.Label, outline.Confidence);
+                        /*
+                        outline.WorldDimensions = new BoundingBoxWorldDimensions();
+                        outline.WorldDimensions.position = worldHitPosCenter;
+                        outline.WorldDimensions.orientation = rotationHit;
+                        outline.WorldDimensions.localScale = new Vector3(worldHitScaleX, worldHitScaleY, Math.Min(worldHitScaleX, worldHitScaleY));
+                        outline.WorldReferenced = true;
+
+                        outline.AttachedGameObject = CreateAnchorGameObject(outline.WorldDimensions.position,
+                                                                            outline.WorldDimensions.orientation,
+                                                                            outline.WorldDimensions.localScale);
+                        outline.AttachedGameObject.name = outline.Label;
+
+                        var textMesh = new GameObject();
+                        var text = textMesh.AddComponent<TextMesh>();
+                        text.text = $"{outline.Label}: {(int)(outline.Confidence * 100)}%";
+                        textMesh.transform.SetParent(outline.AttachedGameObject.transform, true);
+                        textMesh.transform.localPosition = new Vector3();
+                        */
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                //Debug.Log("Couldn't raycast");
+            }
+        }
+    }
+#if false
+    private bool IsSameObject(BoundingBox outline1, BoundingBox outline2)
+    {
+        // For two bounding boxes, if at least one center is inside the other box,
+        // treate them as the same object.
+        if(outline1.AttachedGameObject == null || outline2.AttachedGameObject == null)
+        {
+            Debug.LogWarning("IsSameObject without AttachedGameObject");
+            return true;
+        }
+
+        Collider collider1 = outline1.AttachedGameObject.GetComponent<Collider>();
+        Collider collider2 = outline2.AttachedGameObject.GetComponent<Collider>();
+
+        if(!collider1 || !collider2)
+        {
+            Debug.LogWarning("IsSameObject without Collider for AttachedGameObject");
+            return true;
+        }
+
+        if (collider1.bounds.Contains(collider2.bounds.center)) return true;
+        if (collider2.bounds.Contains(collider1.bounds.center)) return true;
+
+        Collider[] hitColliders1 = Physics.OverlapBox(collider1.bounds.center, collider1.bounds.extents /2.0f, outline1.AttachedGameObject.transform.rotation);
+        foreach (Collider col in hitColliders1)
+        {
+            if (col == collider1) return true;
+            if (col.gameObject.layer == detectedObjectsLayer) ;
+        }
+        Collider[] hitColliders2 = Physics.OverlapBox(collider2.bounds.center, collider2.bounds.extents / 2.0f, outline2.AttachedGameObject.transform.rotation);
+        foreach (Collider col in hitColliders2)
+        {
+            if (col == collider2) return true;
+        }
+        return true;
+    }
+#endif
     private void CalculateShift(int inputSize)
     {
         int smallest;
@@ -380,14 +596,14 @@ public class PhoneARCamera : MonoBehaviour
     }
 
 
-    private void DrawBoxOutline(BoundingBox outline, float scaleFactor, float shiftX, float shiftY)
+    private void DrawBoxOutline(BoundingBox outline, float scaleFactor, float shiftX, float shiftY, int frameWidth=10)
     {
         var x = outline.Dimensions.X * scaleFactor + shiftX;
         var width = outline.Dimensions.Width * scaleFactor;
         var y = outline.Dimensions.Y * scaleFactor + shiftY;
         var height = outline.Dimensions.Height * scaleFactor;
 
-        DrawRectangle(new Rect(x, y, width, height), 10, this.colorTag);
+        DrawRectangle(new Rect(x, y, width, height), frameWidth, this.colorTag);
         DrawLabel(new Rect(x, y - 80, 200, 20), $"Localizing {outline.Label}: {(int)(outline.Confidence * 100)}%");
     }
 
@@ -430,6 +646,11 @@ public class PhoneARCamera : MonoBehaviour
         //flipped =  TextureTools.FlipXImageMatrix(flipped, width, height);
         // return flipped;
         return rotate;
+    }
+
+    public void OnConfidenceLevelChanged(float conf)
+    {
+        confidenceFilter = conf;
     }
 
 
