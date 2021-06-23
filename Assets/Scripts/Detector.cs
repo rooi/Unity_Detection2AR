@@ -42,11 +42,19 @@ public class BoundingBox
         Used = false;
     }
 
+    ~BoundingBox()
+    {
+        if (CameraCopy) GameObject.Destroy(CameraCopy);
+    }
+
     public BoundingBoxDimensions Dimensions { get; set; }
 
     public string Label { get; set; }
 
     public float Confidence { get; set; }
+
+
+    public Camera CameraCopy { get; set; }
 
     // whether the bounding box already is used to raycast anchors
     public bool Used { get; set; }

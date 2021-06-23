@@ -380,30 +380,16 @@ public class PhoneARCamera : MonoBehaviour
 
         GameObject go = new GameObject($"{label}: {(int)(confidence * 100)}%");
 
-        GameObject child = m_3DBoundingBox ? Instantiate(m_3DBoundingBox, new Vector3(0, 0, 0), Quaternion.identity) : GameObject.CreatePrimitive(PrimitiveType.Cube);
+        GameObject child = Instantiate(m_3DBoundingBox, new Vector3(0, 0, 0), Quaternion.identity);
         child.transform.SetParent(go.transform, true);
-        BoxCollider bc = child.GetComponent<BoxCollider>();
-        if(!bc) child.AddComponent(typeof(BoxCollider));
-
-        Merge3DBoundingBoxes mbb = child.AddComponent(typeof(Merge3DBoundingBoxes)) as Merge3DBoundingBoxes;
+        
+        Merge3DBoundingBoxes mbb = child.GetComponent(typeof(Merge3DBoundingBoxes)) as Merge3DBoundingBoxes;
         mbb.label = label; mbb.confidence = confidence;
 
         Rigidbody rb = child.GetComponent<Rigidbody>();
-        if(!rb) rb = child.AddComponent(typeof(Rigidbody)) as Rigidbody;
-        rb.useGravity = false;
-
-        //child.transform.localPosition = -0.5f * new Vector3(1, 1, 1);
-
-        if (label != "")
-        {
-            var textMesh = new GameObject();
-            var text = textMesh.AddComponent<TextMeshPro>();
-            text.text = $"{label}: {(int)(confidence * 100)}%";
-            textMesh.transform.localScale = 0.05f * new Vector3(1, 1, 1);
-            textMesh.transform.rotation = rot;
-            textMesh.transform.SetParent(go.transform, true);
-            //textMesh.transform.localPosition = new Vector3();
-        }
+        
+        var text = child.GetComponentInChildren<TextMeshPro>();
+        text.text = $"{label}: {(int)(confidence * 100)}%";
         
         // Note: rect bounding box coordinates starts from top left corner.
         // AR camera starts from borrom left corner.
@@ -413,7 +399,6 @@ public class PhoneARCamera : MonoBehaviour
 
         go.transform.position = pos;
         go.AddComponent(typeof(ARAnchor));
-
 
         //go.layer = detectedObjectsLayer;
 
@@ -478,7 +463,7 @@ public class PhoneARCamera : MonoBehaviour
                         var worldHitScaleX = 2.0f * (worldHitPosCenter - worldHitPosLeft).magnitude;
                         var worldHitScaleY = 2.0f * (worldHitPosCenter - worldHitPosUp).magnitude;
                         var localScale = new Vector3(worldHitScaleX, worldHitScaleY, Math.Min(worldHitScaleX, worldHitScaleY));
-                        var rotationHit = m_ARCamera.transform.rotation;
+                        var rotationHit = Quaternion.LookRotation(new Vector3(hit.normal.x, 0, hit.normal.z));//m_ARCamera.transform.rotation;
                         CreateAnchorGameObject(worldHitPosCenter, rotationHit, localScale, outline.Label, outline.Confidence);
                         /*
                         outline.WorldDimensions = new BoundingBoxWorldDimensions();
@@ -571,11 +556,14 @@ public class PhoneARCamera : MonoBehaviour
         }
 
         this.isDetecting = true;
+        Camera camCopy = null;
+        camCopy.CopyFrom(m_ARCamera);
         StartCoroutine(ProcessImage(this.detector.IMAGE_SIZE, result =>
         {
             StartCoroutine(this.detector.Detect(result, boxes =>
             {
                 this.boxOutlines = boxes;
+                foreach (var box in this.boxOutlines) box.CameraCopy = camCopy;
                 Resources.UnloadUnusedAssets();
                 this.isDetecting = false;
             }));

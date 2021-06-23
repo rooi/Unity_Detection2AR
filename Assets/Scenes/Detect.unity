@@ -1281,7 +1281,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_CameraManager: {fileID: 1479178377}
-  m_3DBoundingBox: {fileID: 4865833518477969638, guid: cfc0ec27191c0421986acc49928ad62c,
+  m_3DBoundingBox: {fileID: 4043953987210929863, guid: 73f5a68de60d24ea3a70e1f35bfd5f72,
     type: 3}
   m_RaycastManager: {fileID: 1768617441}
   layersToInclude:
@@ -1479,6 +1479,7 @@ GameObject:
   - component: {fileID: 1479178376}
   - component: {fileID: 1479178375}
   - component: {fileID: 1479178380}
+  - component: {fileID: 1479178381}
   m_Layer: 0
   m_Name: AR Camera
   m_TagString: MainCamera
@@ -1692,6 +1693,22 @@ MonoBehaviour:
     sh[26]: -0.11001154
   SphericalHarmonicsContinuousUpdate: 1
   DirectionalLightToSetSphericalHarmonicsFrom: {fileID: 0}
+--- !u!114 &1479178381
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1479178373}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b15f82cc229284894964d2d30806969d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_HumanSegmentationStencilMode: 2
+  m_HumanSegmentationDepthMode: 1
+  m_EnvironmentDepthMode: 2
+  m_OcclusionPreferenceMode: 0
 --- !u!1 &1768617436
 GameObject:
   m_ObjectHideFlags: 0
@@ -1707,7 +1724,6 @@ GameObject:
   - component: {fileID: 1768617442}
   - component: {fileID: 1768617443}
   - component: {fileID: 1768617439}
-  - component: {fileID: 1768617444}
   m_Layer: 0
   m_Name: AR Session Origin
   m_TagString: Untagged
@@ -1815,22 +1831,6 @@ MonoBehaviour:
   m_PlanePrefab: {fileID: 4790095165407838153, guid: c4e486de976fe5b458821f4f895780b2,
     type: 3}
   m_DetectionMode: -1
---- !u!114 &1768617444
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1768617436}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b15f82cc229284894964d2d30806969d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_HumanSegmentationStencilMode: 2
-  m_HumanSegmentationDepthMode: 1
-  m_EnvironmentDepthMode: 2
-  m_OcclusionPreferenceMode: 0
 --- !u!1 &1791675019
 GameObject:
   m_ObjectHideFlags: 0
@@ -1874,7 +1874,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 968053edfd89749c48f4ea5d444abf64, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_MeshPrefab: {fileID: 5002281369233153173, guid: a7db2f31145544cc9a9abc959fc3e80e,
+  m_MeshPrefab: {fileID: 6427989023023856471, guid: fedb7292b0fca45fb8cd1185135b9511,
     type: 3}
   m_Density: 0.5
   m_Normals: 1
@@ -2004,7 +2004,7 @@ MonoBehaviour:
   m_MinValue: 0
   m_MaxValue: 1
   m_WholeNumbers: 0
-  m_Value: 0.9
+  m_Value: 0.8
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
