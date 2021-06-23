@@ -34,17 +34,47 @@ public class WorldDimensionsBase
 
 public class BoundingBoxWorldDimensions : WorldDimensionsBase { }
 
+public class CameraProperties
+{
+    private Vector3 position;
+    private Quaternion rotation;
+    private float fov;
+    private float nearPlane;
+    private float farPlane;
+    public bool IsSet;
+
+    public CameraProperties(Camera cam)
+    {
+        this.CopyFromCamera(cam);
+    }
+
+    public void CopyFromCamera(Camera cam)
+    {
+        position = cam.transform.position;
+        rotation = cam.transform.rotation;
+        fov = cam.fieldOfView;
+        nearPlane = cam.nearClipPlane;
+        farPlane = cam.farClipPlane;
+
+        IsSet = true;
+    }
+
+    public void CopyToCamera(Camera cam)
+    {
+        cam.transform.position = position;
+        cam.transform.rotation = rotation;
+        cam.fieldOfView = fov;
+        cam.nearClipPlane = nearPlane;
+        cam.farClipPlane = farPlane;
+    }
+}
+
 
 public class BoundingBox
 {
     public BoundingBox()
     {
         Used = false;
-    }
-
-    ~BoundingBox()
-    {
-        if (CameraCopy) GameObject.Destroy(CameraCopy);
     }
 
     public BoundingBoxDimensions Dimensions { get; set; }
@@ -54,7 +84,7 @@ public class BoundingBox
     public float Confidence { get; set; }
 
 
-    public Camera CameraCopy { get; set; }
+    public CameraProperties CameraProperties { get; set; }
 
     // whether the bounding box already is used to raycast anchors
     public bool Used { get; set; }

@@ -35,6 +35,9 @@ public class PhoneARCamera : MonoBehaviour
     public ARAnchorManager m_AnchorManager;
     public Camera m_ARCamera;
 
+    [SerializeField]
+    private Camera cameraUsedForCalculation;
+
     static List<ARRaycastHit> s_Hits = new List<ARRaycastHit>();
 
     const TrackableType trackableTypes = TrackableType.Planes;// TrackableType.Planes | TrackableType.FeaturePoint;
@@ -430,15 +433,23 @@ public class PhoneARCamera : MonoBehaviour
             float center_x = xMin + width / 2f;
             float center_y = yMin - height / 2f;
 
-            var worldPosCenter = m_ARCamera.ScreenToWorldPoint(new Vector3(center_x, center_y, m_ARCamera.nearClipPlane));
-            var worldPosLeft = m_ARCamera.ScreenToWorldPoint(new Vector3(xMin, center_y, m_ARCamera.nearClipPlane));//outline1.Rect.xMin, outline1.Rect.center.y, m_ARCamera.nearClipPlane));
-            var worldPosUp = m_ARCamera.ScreenToWorldPoint(new Vector3(center_x, yMin, m_ARCamera.nearClipPlane));//outline1.Rect.center.x, outline1.Rect.yMax, m_ARCamera.nearClipPlane));
+            // Used camera ref if there is one
+            var cam = m_ARCamera;
+            if (cameraUsedForCalculation && outline.CameraProperties.IsSet) // only reposition camera if there is a dedicated camera
+            {
+                cam = cameraUsedForCalculation;
+                outline.CameraProperties.CopyToCamera(cam);
+            }
+
+            var worldPosCenter = cam.ScreenToWorldPoint(new Vector3(center_x, center_y, cam.nearClipPlane));
+            var worldPosLeft = cam.ScreenToWorldPoint(new Vector3(xMin, center_y, cam.nearClipPlane));
+            var worldPosUp = cam.ScreenToWorldPoint(new Vector3(center_x, yMin, cam.nearClipPlane));
             var worldScaleX = 2.0f * (worldPosCenter - worldPosLeft).magnitude;
             var worldScaleY = 2.0f * (worldPosCenter - worldPosUp).magnitude;
-            var rotation = m_ARCamera.transform.rotation;
+            var rotation = cam.transform.rotation;
             //CreateAnchorGameObject(worldPosCenter, rotation, worldScaleX, worldScaleY);
 
-            if(Physics.Raycast(m_ARCamera.ScreenPointToRay(new Vector3(center_x, center_y, m_ARCamera.nearClipPlane)), out var hit, float.PositiveInfinity, layersToInclude))
+            if(Physics.Raycast(cam.ScreenPointToRay(new Vector3(center_x, center_y, cam.nearClipPlane)), out var hit, float.PositiveInfinity, layersToInclude))
             //if (m_RaycastManager.Raycast(new Vector2(center_x, center_y), s_Hits, trackableTypes))
             {
                 int i = 0;
@@ -457,13 +468,13 @@ public class PhoneARCamera : MonoBehaviour
                         // Create a new anchor
                         //Debug.Log("Creating 3D World Reference for BoundingBox");
 
-                        var worldHitPosCenter = hit.point;// pose.position; //m_ARCamera.nearClipPlane));
-                        var worldHitPosLeft = m_ARCamera.ScreenToWorldPoint(new Vector3(xMin, center_y, hit.distance)); //m_ARCamera.nearClipPlane));//outline1.Rect.xMin, outline1.Rect.center.y, m_ARCamera.nearClipPlane));
-                        var worldHitPosUp = m_ARCamera.ScreenToWorldPoint(new Vector3(center_x, yMin, hit.distance)); //m_ARCamera.nearClipPlane));//outline1.Rect.center.x, outline1.Rect.yMax, m_ARCamera.nearClipPlane));
+                        var worldHitPosCenter = hit.point;// pose.position; 
+                        var worldHitPosLeft = cam.ScreenToWorldPoint(new Vector3(xMin, center_y, hit.distance)); 
+                        var worldHitPosUp = cam.ScreenToWorldPoint(new Vector3(center_x, yMin, hit.distance)); 
                         var worldHitScaleX = 2.0f * (worldHitPosCenter - worldHitPosLeft).magnitude;
                         var worldHitScaleY = 2.0f * (worldHitPosCenter - worldHitPosUp).magnitude;
                         var localScale = new Vector3(worldHitScaleX, worldHitScaleY, Math.Min(worldHitScaleX, worldHitScaleY));
-                        var rotationHit = Quaternion.LookRotation(new Vector3(hit.normal.x, 0, hit.normal.z));//m_ARCamera.transform.rotation;
+                        var rotationHit = Quaternion.LookRotation(new Vector3(hit.normal.x, 0, hit.normal.z));
                         CreateAnchorGameObject(worldHitPosCenter, rotationHit, localScale, outline.Label, outline.Confidence);
                         /*
                         outline.WorldDimensions = new BoundingBoxWorldDimensions();
@@ -556,14 +567,15 @@ public class PhoneARCamera : MonoBehaviour
         }
 
         this.isDetecting = true;
-        Camera camCopy = null;
-        camCopy.CopyFrom(m_ARCamera);
+
+        var camProps = new CameraProperties(m_ARCamera);
+
         StartCoroutine(ProcessImage(this.detector.IMAGE_SIZE, result =>
         {
             StartCoroutine(this.detector.Detect(result, boxes =>
             {
                 this.boxOutlines = boxes;
-                foreach (var box in this.boxOutlines) box.CameraCopy = camCopy;
+                foreach (var box in this.boxOutlines) box.CameraProperties = camProps;
                 Resources.UnloadUnusedAssets();
                 this.isDetecting = false;
             }));
