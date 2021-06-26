@@ -751,7 +751,10 @@ PlayerSettings:
   webGLThreadsSupport: 0
   webGLDecompressionFallback: 0
   scriptingDefineSymbols:
-    4: UNITY_XR_ARKIT_LOADER_ENABLED
+    1: CROSS_PLATFORM_INPUT
+    4: UNITY_XR_ARKIT_LOADER_ENABLED;CROSS_PLATFORM_INPUT;MOBILE_INPUT
+    7: CROSS_PLATFORM_INPUT;MOBILE_INPUT
+    14: MOBILE_INPUT
   additionalCompilerArguments: {}
   platformArchitecture:
     iPhone: 1

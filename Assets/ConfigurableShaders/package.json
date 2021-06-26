@@ -1,0 +1,27 @@
+{
+	"name": "com.supyrb.configurableshaders",
+	"displayName": "✨ Configurable Shaders",
+	"description": "Powerful Shaders for the built-in Render Pipeline that will make your life easier!",
+	"keywords": [
+		"Shader",
+		"Shaders",
+		"Configurable",
+		"Configurable Shaders",
+		"Supyrb",
+		"Rendering",
+		"Material Property Drawers"
+	],
+	"category": "Utility",
+	"version": "0.7.1",
+	"unity": "2018.1",
+	"dependencies": {
+		
+	},
+	"samples": [
+		{
+			"displayName": "Examples",
+			"description": "Examples scenes and materials with different setups",
+			"path": "Samples~/Examples"
+		}
+	]
+}
