@@ -32,6 +32,9 @@ public class PhoneARCamera : MonoBehaviour
     [SerializeField]
     private float confidenceFilter = 0.9f;
 
+    [SerializeField]
+    private bool enableDebugSymbology = false;
+
     public ARAnchorManager m_AnchorManager;
     public Camera m_ARCamera;
 
@@ -222,7 +225,7 @@ public class PhoneARCamera : MonoBehaviour
     public void OnGUI()
     {
         // Do not draw bounding boxes after localization.
-        if (localization)
+        if (localization || !enableDebugSymbology)
         {
             return;
         }
@@ -474,7 +477,8 @@ public class PhoneARCamera : MonoBehaviour
                         var worldHitScaleX = 2.0f * (worldHitPosCenter - worldHitPosLeft).magnitude;
                         var worldHitScaleY = 2.0f * (worldHitPosCenter - worldHitPosUp).magnitude;
                         var localScale = new Vector3(worldHitScaleX, worldHitScaleY, Math.Min(worldHitScaleX, worldHitScaleY));
-                        var rotationHit = Quaternion.LookRotation(new Vector3(hit.normal.x, 0, hit.normal.z));
+                        var rotationHit = Quaternion.identity;
+                        if(hit.normal.x != 0 || hit.normal.z != 0) rotationHit = Quaternion.LookRotation(new Vector3(hit.normal.x, 0, hit.normal.z));
                         CreateAnchorGameObject(worldHitPosCenter, rotationHit, localScale, outline.Label, outline.Confidence);
                         /*
                         outline.WorldDimensions = new BoundingBoxWorldDimensions();

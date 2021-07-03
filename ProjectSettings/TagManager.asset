@@ -12,10 +12,10 @@ TagManager:
   - RoomMesh
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
+  - BoundingBoxes
+  - Post Processing
+  - PointCloud
+  - TextMesh
   - 
   - 
   - 

@@ -66,6 +66,7 @@ public class Merge3DBoundingBoxes : MonoBehaviour
                 if (mbb1.confidence <= mbb2.confidence && (mbb1.lastDetection < mbb2.lastDetection || mbb1.nrOfDetections < mbb2.nrOfDetections))
                 {
                     mbb1.scheduleDestroyAnchor = true;
+                    mbb2.nrOfDetections += mbb1.nrOfDetections;
                     //GameObject.Destroy(go1.transform.parent.gameObject);
                 }
             }
