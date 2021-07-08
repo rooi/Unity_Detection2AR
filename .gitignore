@@ -64,5 +64,7 @@ Assets/Samples.meta
 Assets/Test/NewBehaviourScript.cs
 Assets/Test/
 Assets/Test.meta
+Models/ID/
+Models/ID.meta
 Packages/package/
 Packages/packages-lock.json

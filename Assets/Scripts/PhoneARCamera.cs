@@ -68,7 +68,8 @@ public class PhoneARCamera : MonoBehaviour
 
     public enum Detectors{
         Yolo2_tiny,
-        Yolo3_tiny
+        Yolo3_tiny,
+        Yolo5_ID
     };
     public Detectors selected_detector;
 
@@ -117,6 +118,10 @@ public class PhoneARCamera : MonoBehaviour
         else if (selected_detector == Detectors.Yolo3_tiny)
         {
             detector = GameObject.Find("Detector Yolo3-tiny").GetComponent<DetectorYolo3>();
+        }
+        else if (selected_detector == Detectors.Yolo5_ID)
+        {
+            detector = GameObject.Find("Detector ID Yolo5").GetComponent<DetectorIDYolo5>();
         }
         else
         {
