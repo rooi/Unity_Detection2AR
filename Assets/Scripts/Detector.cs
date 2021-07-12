@@ -8,6 +8,8 @@ public interface Detector
 {
     int IMAGE_SIZE { get; }
     void Start();
+
+    IEnumerator Detect(RenderTexture renderTexture, System.Action<IList<BoundingBox>> callback);
     IEnumerator Detect(Color32[] picture, System.Action<IList<BoundingBox>> callback);
 
 }

@@ -65,7 +65,25 @@ public class DetectorYolo3 : MonoBehaviour, Detector
         this.worker = GraphicsWorker.GetWorker(model);
     }
 
+    public IEnumerator Detect(RenderTexture renderTexture, System.Action<IList<BoundingBox>> callback)
+    {
+        using (var tensor = TransformInput(renderTexture))
+        {
+            var inputs = new Dictionary<string, Tensor>();
+            inputs.Add(INPUT_NAME, tensor);
+            yield return StartCoroutine(worker.StartManualSchedule(inputs));
+            //worker.Execute(inputs);
+            var output_l = worker.PeekOutput(OUTPUT_NAME_L);
+            var output_m = worker.PeekOutput(OUTPUT_NAME_M);
+            //Debug.Log("Output: " + output);
+            var results_l = ParseOutputs(output_l, MINIMUM_CONFIDENCE, params_l);
+            var results_m = ParseOutputs(output_m, MINIMUM_CONFIDENCE, params_m);
+            var results = results_l.Concat(results_m).ToList();
 
+            var boxes = FilterBoundingBoxes(results, 5, MINIMUM_CONFIDENCE);
+            callback(boxes);
+        }
+    }
 
 
     public IEnumerator Detect(Color32[] picture, System.Action<IList<BoundingBox>> callback)
@@ -86,6 +104,16 @@ public class DetectorYolo3 : MonoBehaviour, Detector
             var boxes = FilterBoundingBoxes(results, 5, MINIMUM_CONFIDENCE);
             callback(boxes);
         }
+    }
+
+    public static Tensor TransformInput(RenderTexture inputRenderTexture)
+    {
+        RenderTexture tmpRenderTexture = new RenderTexture(inputRenderTexture.descriptor);
+
+        var tmp = new Tensor(srcTexture: inputRenderTexture, channels: 3);
+        tmp.ToRenderTexture(target: tmpRenderTexture, batch: 0, fromChannel: 3, scale: 1 / IMAGE_STD, bias: -IMAGE_MEAN / IMAGE_STD);
+
+        return new Tensor(tmpRenderTexture, 3);
     }
 
 

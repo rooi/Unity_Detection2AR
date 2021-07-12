@@ -98,7 +98,49 @@ public class DetectorIDYolo5 : MonoBehaviour, Detector
         this.worker = GraphicsWorker.GetWorker(model);
     }
 
+    public IEnumerator Detect(RenderTexture rt, System.Action<IList<BoundingBox>> callback)
+    {
+        using (var tensor = TransformInput(rt))
+        //using (var tensor = new Tensor(tex))
+        {
+            var inputs = new Dictionary<string, Tensor>();
+            inputs.Add(INPUT_NAME, tensor);
+            yield return StartCoroutine(worker.StartManualSchedule(inputs));
+            //worker.Execute(inputs);
+            var output = worker.PeekOutput(OUTPUT_NAME);
+            //Debug.Log("Output: " + output);
+            //var texture = BarracudaTextureUtils.TensorToRenderTexture(output);
 
+
+            var results = GetResults(output, classesNames, IMAGE_SIZE, IMAGE_SIZE, MINIMUM_CONFIDENCE, 0.7f);
+
+            var boxes = new List<BoundingBox>();
+            for (int i = 0; i < results.Count; i++)
+            {
+                Debug.Log("result " + i + "; " + results.ElementAt(i).Label + "; " + results.ElementAt(i).Confidence + "; " + results.ElementAt(i).BBox[0] + "; " + results.ElementAt(i).BBox[1] + "; " + results.ElementAt(i).BBox[2] + "; " + results.ElementAt(i).BBox[3]);
+                var bb = new BoundingBox();
+
+                boxes.Add(new BoundingBox
+                {
+                    Dimensions = new BoundingBoxDimensions
+                    {
+                        X = results.ElementAt(i).BBox[0],//(mappedBoundingBox.X - mappedBoundingBox.Width / 2),
+                        Y = results.ElementAt(i).BBox[1],//(mappedBoundingBox.Y - mappedBoundingBox.Height / 2),
+                        Width = results.ElementAt(i).BBox[2] - results.ElementAt(i).BBox[0],
+                        Height = results.ElementAt(i).BBox[3] - results.ElementAt(i).BBox[1],
+                    },
+                    Confidence = results.ElementAt(i).Confidence,
+                    Label = results.ElementAt(i).Label,
+                    Used = false
+                });
+            }
+            //            var results = ParseOutputs(output, MINIMUM_CONFIDENCE, params_);
+
+            //var boxes = FilterBoundingBoxes(results, 5, MINIMUM_CONFIDENCE);
+
+            callback(boxes);
+        }
+    }
 
 
     public IEnumerator Detect(Color32[] picture, System.Action<IList<BoundingBox>> callback)
@@ -117,7 +159,7 @@ public class DetectorIDYolo5 : MonoBehaviour, Detector
         File.WriteAllBytes(dirPath + "Image2" + ".png", bytes);
         */
 
-
+        
         using (var tensor = TransformInput(picture, IMAGE_SIZE, IMAGE_SIZE))
         //using (var tensor = new Tensor(tex))
         {
@@ -160,7 +202,49 @@ public class DetectorIDYolo5 : MonoBehaviour, Detector
         }
     }
 
+    public static void DumpRenderTexture(RenderTexture rt, string pngOutPath)
+    {
+        var oldRT = RenderTexture.active;
 
+        var tex = new Texture2D(rt.width, rt.height);
+        RenderTexture.active = rt;
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply();
+
+        File.WriteAllBytes(pngOutPath, tex.EncodeToPNG());
+        RenderTexture.active = oldRT;
+    }
+
+    public static Tensor TransformInput(RenderTexture inputRenderTexture)
+    {
+        RenderTexture tmpRenderTexture = new RenderTexture(inputRenderTexture.descriptor);
+
+        var tmp = new Tensor(srcTexture: inputRenderTexture, channels: 3);
+        tmp.ToRenderTexture(target: tmpRenderTexture, batch: 0, fromChannel: 0, scale: 1 / IMAGE_STD, bias: -IMAGE_MEAN / IMAGE_STD);
+
+        DumpRenderTexture(tmpRenderTexture, Application.dataPath + "/../SaveImages/ImageRttTensor.png");
+        /*
+        Texture2D m_Texture = null;
+        if (m_Texture == null || m_Texture.width != tmpRenderTexture.width || m_Texture.height != tmpRenderTexture.width)
+        {
+            m_Texture = new Texture2D(tmpRenderTexture.width, tmpRenderTexture.height, TextureFormat.RGBA32, false);
+        }
+        m_Texture.ReadPixels(new Rect(0, 0, tmpRenderTexture.width, tmpRenderTexture.height), 0, 0, false);
+        m_Texture.Apply();
+
+        byte[] bytes = m_Texture.EncodeToPNG();
+        var dirPath = Application.dataPath + "/../SaveImages/";
+        if (!Directory.Exists(dirPath))
+        {
+            Directory.CreateDirectory(dirPath);
+        }
+        File.WriteAllBytes(dirPath + "ImageRttTensor" + ".png", bytes);
+        */
+
+
+
+        return new Tensor(tmpRenderTexture, 3);
+    }
     public static Tensor TransformInput(Color32[] pic, int width, int height)
     {
         float[] floatValues = new float[width * height * 3];

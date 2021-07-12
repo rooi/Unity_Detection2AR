@@ -61,7 +61,21 @@ public class DetectorYolo2 : MonoBehaviour, Detector
         this.worker = GraphicsWorker.GetWorker(model);
     }
 
-
+    public IEnumerator Detect(RenderTexture renderTexture, System.Action<IList<BoundingBox>> callback)
+    {
+        using (var tensor = TransformInput(renderTexture))
+        {
+            var inputs = new Dictionary<string, Tensor>();
+            inputs.Add(INPUT_NAME, tensor);
+            yield return StartCoroutine(worker.StartManualSchedule(inputs));
+            //worker.Execute(inputs);
+            var output = worker.PeekOutput(OUTPUT_NAME);
+            Debug.Log("Output: " + output);
+            var results = ParseOutputs(output, MINIMUM_CONFIDENCE);
+            var boxes = FilterBoundingBoxes(results, 5, MINIMUM_CONFIDENCE);
+            callback(boxes);
+        }
+    }
     public IEnumerator Detect(Color32[] picture, System.Action<IList<BoundingBox>> callback)
     {
         using (var tensor = TransformInput(picture, IMAGE_SIZE, IMAGE_SIZE))
@@ -78,6 +92,15 @@ public class DetectorYolo2 : MonoBehaviour, Detector
         }
     }
 
+    public static Tensor TransformInput(RenderTexture inputRenderTexture)
+    {
+        RenderTexture tmpRenderTexture = new RenderTexture(inputRenderTexture.descriptor);
+
+        var tmp = new Tensor(srcTexture: inputRenderTexture, channels: 3);
+        tmp.ToRenderTexture(target: tmpRenderTexture, batch: 0, fromChannel: 3, scale: 1 / IMAGE_STD, bias: -IMAGE_MEAN / IMAGE_STD);
+
+        return new Tensor(tmpRenderTexture, 3);
+    }
 
     public static Tensor TransformInput(Color32[] pic, int width, int height)
     {
